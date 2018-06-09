@@ -1,0 +1,50 @@
+#include "_defines.fos"
+
+void unsafe_MoveCritToMap(Critter& cr, int CritterID, int MapIndex, int, string@, array<int>@)
+{
+	//uint LocationID = CreateLocation( 500, 32, 32, null );
+	Location@ loc = GetLocation( CreateLocation( 500, 1000, 1000, null ) );
+	
+	
+
+	uint nX = loc.WorldX;
+	uint nY = loc.WorldY;
+	
+	string X = nX;
+	string Y = nY;
+	
+	uint LocationID = loc.GetProtoId();
+	string strLocID = LocationID;
+	
+	Log( X );
+	Log( Y );
+	Log( strLocID );
+	
+	
+	Map@ map = loc.GetMap( 500 );
+	uint MapID = map.Id;
+	
+	X = map.GetWidth();
+	Y = map.GetHeight();
+	
+	Log ( X );
+	Log ( Y );
+	
+	
+	Critter@ targetcr = GetCritter( CritterID );
+	targetcr.TransitToMap( MapID, 40, 40, 2 );
+}
+	
+void unsafe_LOGTHIS(Critter&, int, int, int, string@ a, array<int>@)
+{
+	Log( a );
+}
+
+void unsafe_LogPlayerSpeech(Critter& cr, int, int, int, string@ speech, array<int>@)
+{
+	if (cr.IsPlayer() == true)
+	{
+	Log( cr.Name + ": " + speech);
+	}
+}		
+			

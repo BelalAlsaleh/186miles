@@ -1,0 +1,266 @@
+#include "_defines.fos"
+
+#define BEGIN_TOKEN			"|***|"
+#define END_TOKEN			"|!!!|"
+#define CRTYPE_FILE_PATH	"allowed_cr_types.txt"
+
+// Works more or less on the same principle as custom_desc
+
+void unsafe_ChangeCrTypeCustom(Critter& cr, int crtype, int, int, string@, array<int>@)
+{
+	file crtype_file;
+	uint ArraySize = 1;
+	if ( crtype_file.open( CRTYPE_FILE_PATH, "r") == 0 )
+	{
+		bool IDFound = false;
+		while( !crtype_file.isEndOfFile() )
+		{
+			if ( crtype_file.readWord() == BEGIN_TOKEN )
+			{
+				uint NumberOfNumbers = 0;
+				uint NumberOfWords = 0;
+				uint WordPosition = crtype_file.getPos();
+
+				while ( crtype_file.readNumber() <= 0 ) // NEED COMMENT HERE
+					{
+						Log( crtype_file.readWord() );
+						++NumberOfWords;
+					}
+					
+				string tyt = NumberOfWords;
+				Log( "Number of words = " + tyt );
+				crtype_file.setPos( WordPosition );
+				
+				for (uint i = 1; i <= NumberOfWords; ++i)
+					{
+						crtype_file.readWord();
+					}
+					
+				
+				uint NumberPosition = crtype_file.getPos();
+				
+				if ( crtype_file.readNumber() != cr.Id )
+				{
+					++ArraySize;
+				}
+				else
+				{
+					IDFound = true;
+				}
+	
+				uint b = crtype_file.readNumber();
+				while ( b != 0 ) // NEED COMMENT HERE
+					{
+						b = crtype_file.readNumber();
+						++NumberOfNumbers;
+					}
+					
+				crtype_file.setPos( NumberPosition );
+				crtype_file.readNumber(); // Skip ID
+				
+				if ( IDFound == true )
+				{
+					for (uint i = 1; i <= NumberOfNumbers; ++i)
+					{
+						if ( crtype_file.readNumber() == crtype )
+						{
+							cr.StatBase[ ST_BASE_CRTYPE ] = crtype;
+							cr.ChangeCrType( cr.Stat[ ST_BASE_CRTYPE ] );
+							break; // We've found the ID, so need to keep searching further
+						}
+					}
+				}
+			}
+		}
+	}
+	crtype_file.close();
+}
+
+void unsafe_ChangeCrTypePermissions(Critter& cr, int first_number, int second_number, int mode, string@, array<int>@)
+{
+	
+	Critter@ TargetCr = GetCritter( first_number );
+	
+	file crtype_file;
+	uint ArraySize = 1;
+	if ( crtype_file.open( CRTYPE_FILE_PATH, "r") == 0 )
+	{
+		while( !crtype_file.isEndOfFile() )
+		{
+			if ( crtype_file.readWord() == BEGIN_TOKEN )
+			{
+				uint NumberOfNumbers = 1;
+				uint NumberOfWords = 0;
+				uint WordPosition = crtype_file.getPos();
+
+				while ( crtype_file.readNumber() <= 0 ) // NEED COMMENT HERE
+					{
+						crtype_file.readWord();
+						++NumberOfWords;
+					}
+					
+				string tyt = NumberOfWords;
+				Log( "Number of words = " + tyt );
+				crtype_file.setPos( WordPosition );
+				
+				for (uint i = 1; i <= NumberOfWords; ++i)
+					{
+						crtype_file.readWord();
+					}
+					
+				
+				uint NumberPosition = crtype_file.getPos();
+				
+				if ( crtype_file.readNumber() != TargetCr.Id )
+				{
+					++ArraySize;
+				}
+				
+				while ( crtype_file.readWord().length() <= 0 ) // NEED COMMENT HERE
+					{
+						crtype_file.readNumber();
+						++NumberOfNumbers;
+					}
+				
+				string chill = NumberOfNumbers;
+				Log( "NumberOfNumbers = " + chill );
+				crtype_file.setPos( NumberPosition );
+				
+				for (uint i = 1; i <= NumberOfNumbers; ++i)
+					{
+						crtype_file.readNumber();
+					}
+			}
+		}
+		Log( "File is being closed" );
+		crtype_file.close();
+	}
+
+	array<string> NameArray(ArraySize);
+	array<uint> IDArray(ArraySize);
+	array<string> CrTypeArray(ArraySize);
+	
+	bool PlayerAlreadyPresent = false; 
+	
+		if ( crtype_file.open( CRTYPE_FILE_PATH, "r") == 0 )
+		{
+			uint LineNumber = 0;
+			while( !crtype_file.isEndOfFile() )
+			{
+				if ( crtype_file.readWord() == BEGIN_TOKEN )
+				{
+					uint NumberOfWords = 0;
+					int WordPosition = crtype_file.getPos(); 	/* Get the file position before the critter name.
+																We're going to go and start checking how many words
+																are in the critter's name; once we know we will
+																return to NamePosition. */
+																
+					while ( crtype_file.readNumber() <= 0 ) // Conditional is based off the fact that if readNumber() reads a string it returns 0
+					{
+						crtype_file.readWord();
+						++NumberOfWords;
+					}
+
+					crtype_file.setPos( WordPosition ); // Now we know how many words there are we can start reading from the saved position.
+					
+					for (uint i = 1; i <= NumberOfWords; ++i)
+					{;
+						NameArray[LineNumber] += crtype_file.readWord() + " ";
+					}
+					
+					NameArray[LineNumber] = substring( NameArray[LineNumber], 0, NameArray[LineNumber].length() - 1 ); // Get rid of the " " at the end.
+					uint a = crtype_file.readNumber(); 		/* Variable 'a' holds the read number. We need to store it this way so we can
+															add it to IDArray later. */
+														
+					
+					if ( a != TargetCr.Id )
+					{
+						IDArray[LineNumber] = a;
+						uint b = crtype_file.readNumber(); // The variable 'b' will the read number
+						while ( b != 0 )
+						{
+							string NumAsString = b; // We're going to store a sequence of numbers as a string
+							CrTypeArray[LineNumber] += NumAsString + " ";
+							b = crtype_file.readNumber();
+						}
+						CrTypeArray[LineNumber] = substring(CrTypeArray[LineNumber], 0, CrTypeArray[LineNumber].length() - 1);
+						// -1 to cut off the space added at the end in the previous while loop.
+						
+						++LineNumber;
+					}
+					else
+					{
+						IDArray[LineNumber] = a;
+						uint b; // The variable 'b' holds the read number
+						
+						PlayerAlreadyPresent = true;
+						bool CrTypeAlreadyPresent = false;
+						b = crtype_file.readNumber();
+						
+						while ( b != 0 )
+						{
+							string NumAsString = b;
+							if ( b == second_number )
+									{	
+										CrTypeAlreadyPresent = true; 
+										if ( mode == 0 ) 	/* If mode == 1, we do not write the critter type back into the file (we are trying to remove it)
+															If mode == 0, then we are changing nothing. But we need to add the critter type back in so the player
+															doesn't lose it. */
+										{
+											CrTypeArray[LineNumber] += NumAsString + " ";
+										}
+									}
+							else
+									{	
+										CrTypeArray[LineNumber] += NumAsString + " ";
+									}
+							b = crtype_file.readNumber();
+						}	
+						if ( CrTypeAlreadyPresent == false )
+						{
+							if ( mode == 0 )
+							{
+							string NumAsString = second_number;
+							CrTypeArray[LineNumber] += NumAsString + " ";
+							}
+						}
+						CrTypeArray[LineNumber] = substring(CrTypeArray[LineNumber], 0, CrTypeArray[LineNumber].length() - 1);	/* -1 to cut off the space added
+																																at the end in the previous while loop. */
+						if ( mode == 2 ) 	/* If we're clearing the player's critter type permissions, undo all the work  
+											done prior to this so nothing is written back into the file. */
+						{
+							CrTypeArray[LineNumber] = "";
+						}							
+						++LineNumber;
+						}
+					}
+			}
+			if ( PlayerAlreadyPresent == false )
+			{
+				uint a = ArraySize - 1; // NameArray.length() returns N+1 where Element N is the final element. If a line for the critter ID is not found, we input it at the end.
+				NameArray[a] = TargetCr.Name;
+				IDArray[a] = TargetCr.Id;
+				string b = second_number;
+				CrTypeArray[a] = b;
+			}
+		crtype_file.close();
+		}
+		
+	/* Now we have three arrays, NameArray, IDArray, and CrTypeArray,
+	all of the same length. Corresponding names, IDs and descriptions
+	sit in the same element in different arrays. Here is where we would
+	do sorting operations, but at the time of writing (18/12/2014) no
+	such code has been written, so lines are ordered chronologically. */
+	
+		if ( crtype_file.open( CRTYPE_FILE_PATH, "w" ) == 0 )
+		{
+			string CritterID;
+			for ( uint i = 0; i < NameArray.length(); ++i )
+			{
+				CritterID = IDArray[i];
+				crtype_file.writeString( BEGIN_TOKEN + "\t\t" + NameArray[i] + "\t\t" + CritterID );
+				crtype_file.writeString( "\t\t" + CrTypeArray[i] + "\t\t" + END_TOKEN + " \n" );
+			}
+		}
+		crtype_file.close();
+}

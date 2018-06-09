@@ -1,0 +1,10 @@
+#include "_defines.fos"
+
+#define BEGIN_TOKEN					"|***|"
+#define END_TOKEN					"|!!!|"
+#define ITEMSTRINGS_FILE_PATH		"item_strings.txt"
+
+void unsafe_GiveItem(Critter& cr, int crtype, int, int, string@, array<int>@)
+{
+	
+}

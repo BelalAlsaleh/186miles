@@ -1,0 +1,237 @@
+#include "_defines.fos"
+
+#define BEGIN_TOKEN			"|***|"
+#define END_TOKEN			"|!!!|"
+#define DESC_FILE_PATH		"descriptions.txt"
+
+/*
+Steps:
+1. Get Arrays
+2. Add new element to each array if cr.Id is not found
+	Otherwise, alter the element in DescArray that corresponds to that cr.Id
+3. Order NameArray alphabetically, swapping elements in IDArray and DescArray as well
+4. Write Arrays to descriptions.txt
+
+descriptions.txt formatted like this (with tabs):
+
+|***| cr.Name cr.Id description |!!!|
+|***| Crash 112 a leather-jacketed mercenary |!!!|
+|***| Voight 98 a man in dented Power Armour |!!!|
+
+*/
+
+void unsafe_SetDesc(Critter& cr, int, int, int, string@ desc, array<int>@)
+{
+	file desc_file;
+	uint ArraySize = 1;
+	if ( desc_file.open( DESC_FILE_PATH, "r") == 0 )
+	{
+		while( !desc_file.isEndOfFile() )
+		{
+			if ( desc_file.readWord() == BEGIN_TOKEN )
+			{
+				int NumberOfWords = 1;
+				int NamePosition = desc_file.getPos();
+				
+				desc_file.readWord();
+				
+				while ( desc_file.readNumber() <= 0 ) // NEED COMMENT HERE
+					{
+						desc_file.readWord();
+						++NumberOfWords;
+					}
+					
+				desc_file.setPos( NamePosition );
+				
+				for (uint i = 1; i <= NumberOfWords; ++i)
+					{
+						desc_file.readWord();
+					}
+					
+				if ( desc_file.readNumber() != cr.Id )
+				{
+					++ArraySize;
+				}
+			}
+		}
+	}
+	desc_file.close();
+	
+	array<string> NameArray(ArraySize);
+	array<uint> IDArray(ArraySize);
+	array<string> DescArray(ArraySize);
+	
+	bool DescAlreadyPresent = false; 
+	
+		if ( desc_file.open( DESC_FILE_PATH, "r") == 0 )
+		{
+			// Log( "desc_file successfully opened for reading" );
+			uint LineNumber = 0;
+			while( !desc_file.isEndOfFile() )
+			{
+				string WHAT_IS_READ;
+				WHAT_IS_READ = desc_file.readWord();
+				if ( WHAT_IS_READ == BEGIN_TOKEN )
+				{
+					int NumberOfWords = 1;
+					int NamePosition = desc_file.getPos(); 	/* Get the file position before the critter name.
+															We're going to go and start checking how many words
+															are in the critter's name; once we know we will
+															return to NamePosition. */
+					desc_file.readWord(); // Read the first word - every critter will have at least one word in their name
+
+					while ( desc_file.readNumber() <= 0 ) // NEED COMMENT HERE
+					{
+						desc_file.readWord();
+						++NumberOfWords;
+					}
+
+					desc_file.setPos( NamePosition ); // Now we know how many words there are we can start reading from the saved position.
+					
+					for (uint i = 1; i <= NumberOfWords; ++i)
+					{
+						NameArray[LineNumber] += desc_file.readWord() + " ";
+					}
+					
+					NameArray[LineNumber] = substring( NameArray[LineNumber], 0, NameArray[LineNumber].length() - 1 ); // Get rid of the " " at the end.
+					
+					// Log( "Name placed in name array: " + NameArray[LineNumber] );
+
+					uint a = desc_file.readNumber(); // Variable 'a' holds the read number...
+					if ( a == cr.Id ) // ...and if it is equal to the critter's ID
+					{
+						IDArray[LineNumber] = a;
+						DescArray[LineNumber] = desc; // Ignore the words that follow the ID, as we're putting the new description 'desc' into DescArray.
+						DescAlreadyPresent = true;
+						/*
+						Log( "(D.A.P.) Name Array: " + NameArray[LineNumber] ); // D.A.P. = desc already present
+						Log( "(D.A.P.) ID Array: " + IDArray[LineNumber] );
+						Log( "(D.A.P.) Desc Array: " + DescArray[LineNumber] );
+						*/
+						++LineNumber;
+						string b = desc_file.readWord();
+						while ( b != END_TOKEN )
+						{
+							b = desc_file.readWord();
+						}
+					}
+					else
+					{
+						IDArray[LineNumber] = a;
+						string b; // The variable 'b' holds the read word
+						while ( b != END_TOKEN )
+						{
+							DescArray[LineNumber] += b + " ";
+							b = desc_file.readWord();
+						}
+						DescArray[LineNumber] = substring(DescArray[LineNumber], 0, DescArray[LineNumber].length() - 1);
+						// -1 to cut off the space added at the end in the previous while loop.
+						/*
+						Log( "Name Array: " + NameArray[LineNumber] );
+						Log( "ID Array: " + IDArray[LineNumber] );
+						Log( "Desc Array: " + DescArray[LineNumber] );
+						*/
+						++LineNumber;
+					}
+				}
+				else
+				{
+					if ( WHAT_IS_READ == END_TOKEN)
+					{
+						++LineNumber;
+					}							/* This is for the scenario in which the critter's ID
+												is found, in which case the desc is simply replaced. 
+												It will read to the end of that line until it finds 
+												BEGIN_TOKEN without doing anything as we have our new
+												desc in DescArray */
+											
+				}
+			
+			}
+			if ( DescAlreadyPresent == false )
+			{
+				uint a = ArraySize - 1; // NameArray.length() returns N+1 where Element N is the final element. If a line for the critter ID is not found, we input it at the end.
+				NameArray[a] = cr.Name;
+				IDArray[a] = cr.Id;
+				DescArray[a] = desc;
+			}
+		}
+		desc_file.close();
+	/* Now we have three arrays, NameArray, IDArray, and DescArray,
+	all of the same length. Corresponding names, IDs and descriptions
+	sit in the same element in different arrays. Here is where we would
+	do sorting operations, but at the time of writing (18/12/2014) no
+	such code has been written, so lines are ordered chronologically. */
+		if ( desc_file.open( DESC_FILE_PATH, "w" ) == 0 )
+		{
+			string CritterID;
+			for ( uint i = 0; i < NameArray.length(); ++i )
+			{
+				CritterID = IDArray[i];
+				desc_file.writeString( BEGIN_TOKEN + "\t\t" + NameArray[i] + "\t\t" + CritterID );
+				desc_file.writeString( "\t\t" + DescArray[i] + "\t\t" + END_TOKEN + " \n" );
+			}
+		}
+		desc_file.close();
+}
+
+void unsafe_GetDesc(Critter& cr, int critterID, int, int, string@, array<int>@)
+{
+	string description;
+	string WHAT_IS_READ;
+	file desc_file;
+	if ( desc_file.open( DESC_FILE_PATH, "r" ) == 0 )
+	{
+		while ( !desc_file.isEndOfFile() )
+		{
+			WHAT_IS_READ = desc_file.readWord();
+			if ( WHAT_IS_READ == BEGIN_TOKEN )
+			{
+				
+				// This section of code is designed to find out how many words in the name, to skip them.
+				int NumberOfWords = 1;
+				int NamePosition = desc_file.getPos();
+				
+				desc_file.readWord();
+				
+				while ( desc_file.readNumber() <= 0 ) // NEED COMMENT HERE
+					{
+						desc_file.readWord();
+						++NumberOfWords;
+					}
+					
+				desc_file.setPos( NamePosition );
+				
+				for (uint i = 1; i <= NumberOfWords; ++i)
+					{
+						desc_file.readWord();
+					}
+				// Section ends here
+					
+				if ( desc_file.readNumber() != critterID ) // If the number following it isn't the critter's ID
+				{
+					// Log( "CritterID wasn't found!" );
+					string a;
+					while ( a != END_TOKEN )
+					{
+						a = desc_file.readWord();
+					}
+				}
+				else
+				{
+					// Log( "CritterID was found!" );
+					string b;
+					b = desc_file.readWord();
+					while ( b != END_TOKEN )
+					{
+						description = description + b + " ";
+						b = desc_file.readWord();
+					}
+					description = substring(description, 0, description.length() - 1); // the -1 cuts off the " " that is added to the final word.
+				}
+			}
+		}
+		desc_file.close();
+	}
+	cr.RunClientScript("put_desc_in_dict", critterID, 0, 0, description, null);
+}
